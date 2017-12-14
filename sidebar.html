@@ -82,111 +82,97 @@
 
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js">
     </script>
-    <script>    
-      /**
-       * On document load, assign click handlers to each button and
-       * loads all the sheet names.
-       */ 
-      $(function() {
-        $('#run').click(runTemplatePropagation)
-        $('#clear').click(startOver)
-        google.script.run.withSuccessHandler(loadSheetNames).getSheetNames()
-      })
-      
-      function startOver () {
-        this.disabled = true
-        $('#run').prop('disabled', false)
-        $('#msg').remove();
-      }
+    <script>
+/**
+ * On document load, assign click handlers to each button and
+ * loads all the sheet names.
+ */
+$(function () {
+  $('#run').click(runTemplatePropagation)
+  $('#clear').click(startOver)
+  google.script.run.withSuccessHandler(loadSheetNames).getSheetNames()
+})
 
-      /**
-       * stringToHtmlId converts sheet names into valid HTML ids.
-       *
-       * @param {string}   The title or name of a sheet.
-       * @returns {string} A valid HTML element id.
-       */ 
-      function stringToHtmlId (string) {
-        var result = string.trim()
+function startOver () {
+  this.disabled = true
+  $('#run').prop('disabled', false)
+  $('#msg').remove()
+}
+
+/**
+ * stringToHtmlId converts sheet names into valid HTML ids.
+ *
+ * @param {string}   The title or name of a sheet.
+ * @returns {string} A valid HTML element id.
+ */
+function stringToHtmlId (string) {
+  var result = string.trim()
         // Change everything that is not a valid HTML id character into an underscore.
-        result = result.replace(/[^A-Za-z0-9_-]/g, '_')
+  result = result.replace(/[^A-Za-z0-9_-]/g, '_')
         // Get rid of any preceding underscores or numbers (must begin with a letter).
-        result = result.replace(/^[0-9_]+/, '')
-        return result
-      }
-      
-      /**
-       * insertSheetName inserts text in the selection box.
-       *
-       * @param {string} The title or name of a sheet.
-       */        
-      function insertSheetName (sheetName) {
-        var container = '#sheet-names-select'
-        var newOption = $('<option id="sheet-name-' 
-          + stringToHtmlId(sheetName) 
-          + '" class="sheet-name" value="' 
-          + sheetName + '">' 
-          + sheetName + '</option>')
-        return $(container).append(newOption)
-      }
+  result = result.replace(/^[0-9_]+/, '')
+  return result
+}
 
-      function loadSheetNames (sheetNames) {
-        var templateDefault = { 'pattern': /(template|model|format|guide|reference|p(lantilla|atr[Óóo]n))/gi }
-        templateDefault.use = false
+/**
+ * insertSheetName inserts text in the selection box.
+ *
+ * @param {string} The title or name of a sheet.
+ */
+function insertSheetName (sheetName) {
+  var container = '#sheet-names-select'
+  var newOption = $('<option id="sheet-name-' +
+          stringToHtmlId(sheetName) +
+          '" class="sheet-name" value="' +
+          sheetName + '">' +
+          sheetName + '</option>')
+  return $(container).append(newOption)
+}
 
-        for (let name of sheetNames) {
-           insertSheetName(name)
-           if (templateDefault.pattern.test(name)) { 
-             templateDefault.use = true
-             templateDefault.name = name
-           }
-        }
-        if (templateDefault.use) $("#sheet-names-select").val(templateDefault.name)
-        $('#loading').remove()
-      }
+function loadSheetNames (sheetNames) {
+  var templateDefault = { 'pattern': /(template|model|format|guide|reference|p(lantilla|atr[Óóo]n))/gi }
+  templateDefault.use = false
+  for (let name of sheetNames) {
+    insertSheetName(name)
+    if (templateDefault.pattern.test(name)) {
+      templateDefault.use = true
+      templateDefault.name = name
+    }
+  }
+  if (templateDefault.use) $('#sheet-names-select').val(templateDefault.name)
+  $('#loading').remove()
+}
 
-      /**
-       * Runs a server-side function to transform the format of the rest of the sheets.
-       */ 
-      function runTemplatePropagation() {
-        var templateName = $('#sheet-names-select').val()
-        this.disabled = true
-        $('#clear').prop('disabled', false)
-        $('#msg').remove()
+/**
+ * Runs a server-side function to transform the format of the rest of the sheets.
+ */
+function runTemplatePropagation () {
+  var templateName = $('#sheet-names-select').val()
+  this.disabled = true
+  $('#clear').prop('disabled', false)
+  $('#msg').remove()
+  google.script.run.withSuccessHandler(showInfo).withFailureHandler(showError).propagateFormat(templateName)
+}
 
-        google.script.run.withSuccessHandler(showInfo).withFailureHandler(showError).propagateFormat(templateName)
-      } 
-/*
-      function propagationSucceeded (msg) {
-        var div = $('<div id="msg" class="info">Propagation succeeded!<br>' + msg + '</div>')
-        $('#fms-form').after(div)
-      }
-      
-      function propagationFailed (msg) {
-        var div = $('<div id="msg" class="info">Propagation succeeded!<br>' + msg + '</div>')
-        $('#fms-form').after(div)
-      }
-*/
-      /**
-       * Inserts a div that contains an error message after a given element.
-       *
-       * @param msg The error message to display.
-       * @param element The element after which to display the error.
-       */
-      function showError (msg) {
-        var div = $('<div id="msg" class="error">' + msg + '</div>')
-        $('#fms-form').after(div)
-      }
-      
-       /**
-       * Inserts a div that contains an info message after a given element.
-       *
-       * @param msg The info message to display.
-       * @param element The element after which to display the info.
-       */
-      function showInfo (msg) {
-        var div = $('<div id="msg" class="info">' + msg + '</div>')
-        $('#fms-form').after(div)
-      }
+/**
+ * Inserts a div that contains an error message after a given element.
+ *
+ * @param msg The error message to display.
+ */
+function showError (msg) {
+  var div = $('<div id="msg" class="error">' + msg + '</div>')
+  $('#fms-form').after(div)
+}
+
+/**
+ * Inserts a div that contains an info message after a given element.
+ *
+ * @param msg The info message to display.
+ */
+function showInfo (msg) {
+  var div = $('<div id="msg" class="info">' + msg + '</div>')
+  $('#fms-form').after(div)
+}
     </script>
   </body>
 </html>
