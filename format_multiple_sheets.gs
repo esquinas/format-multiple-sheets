@@ -26,61 +26,78 @@ function onOpen (e) {
 }
 
 /**
- * @returns {array} list of the names of the sheets in the Spreadsheet
+ * @returns {array.<string>} list of names of the sheets in active Spreadsheet.
  */
 function getSheetNames () {
   var sheetNames = []
   var sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets()
 
   for (var i = 0; i < sheets.length; i++) {
-    sheetNames.push(sheets[i].getName())
+     sheetNames.push(sheets[i].getName())
   }
-
-  return sheetNames
+ 
+  return sheetNames;
 }
 
 /**
  * propagateFormat takes a template sheet and copies its format
- * to every other non-hidden sheet. Including width of cols, height of rows,
- * frozen cols/rows and even tab color.
- * TODO: Copy also charts, protections and images?
- * TODO2: Checkboxes to select if copy chart, protections, tab colors, ...
- * TODO3: Input text to set a placeholder text/number that we want ignored, otherwise content gets copied.
- * TODO4: Option to make a non-destructive propagation.
+ * to every other non-hidden sheet. Including col widths, row heights,
+ * frozen cols/rows and even tab color. 
+ *
+ * TODO1: Copy also charts, protections and images, how?
+ * TODO2: Checkboxes to select whether to copy chart, protections, tab colors, etc.
+ * TODO3: Option to make the script non-destructive 
+ *          -> YAGNY if user duplicates spreadsheet before running script.
+ * Todo3B: Change "tip" to a "tips carrousel"?
+ *
+ * FIX: At input for contentOnly range, HTML5 RegExp for input validation FAILs (b/c no submit button?).
  * @param   {string}       Name of the template sheet.
  * @returns {string|Error} Message or error.
  */
-function propagateFormat (template) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet()
+function propagateFormat (template, options) {
+  var opts = options || {}
+  var ss = SpreadsheetApp.getActiveSpreadsheet() 
   var source = ss.getSheetByName(template)
 
-  if (source === null) {
-    throw new ReferenceError('Sheet with name: "' + template + '" no longer exists!', 'format_multiple_sheets.gs', 54)
-  }
+  if (source === null)
+    throw new ReferenceError('Sheet with name: "' + template +  '" no longer exists!', 'format_multiple_sheets.gs')
 
   var destinations = ss.getSheets()
-  var destination  = destinations[0]
-  var data = prepareData(source)
-
-  var tasks = [unhide, freeze, copyTabColor, copyOnlyFormats, copyHeights, copyWidths]
-
+  var destination = destinations[0]
+  var data = prepareData(source, opts)
+  
+  var tasks = [{ 'execute': unhideCells,        'skip': false },
+               { 'execute': freezeCells,        'skip': false },
+               { 'execute': copyTabColor,       'skip': false },
+               { 'execute': cleanUp,            'skip': true  },
+               { 'execute': copyFormatsOnly,    'skip': false },
+               { 'execute': copyHeights,        'skip': false },
+               { 'execute': copyWidths,         'skip': false },
+               { 'execute': copyContentsOnly,   'skip': false }]
+  
   for (var i = 0; i < destinations.length; i++) {
     destination = destinations[i]
 
-    if (destination.isSheetHidden() || isSameSheet(destination, source)) continue
-
-    for (var j = 0; j < tasks.length; j++) tasks[j](destination, data)
+    if (destination.isSheetHidden() || isSameSheet(destination, data.source)) continue
+    
+    for (var j = 0; j < tasks.length; j++) {
+      if (!tasks[j].skip) tasks[j].execute(destination, data)
+    }
   }
-
-  return 'Propagation succeeded!'
+  
+  return 'Done!'
 }
 
-function prepareData (source) {
+function prepareData (source, opts) {
   var data = { 'range': source.getDataRange() }
-  data.values = data.range.getValues()
+
+  if (opts.contentsOnlyRange && isValidA1Notation(opts.contentsOnlyRange))
+    data.contentsOnlyRange = source.getRange(opts.contentsOnlyRange)
+
+  data.values   = data.range.getValues()
   data.rangeInA1Notation = data.range.getA1Notation()
-  data.numCols = data.range.getNumColumns()
-  data.numRows = data.range.getNumRows()
+  data.numCols  = data.range.getNumColumns()
+  data.numRows  = data.range.getNumRows()
 
   data.firstCol = data.range.getColumn()
   data.firstRow = data.range.getRow()
@@ -88,52 +105,57 @@ function prepareData (source) {
   data.frozenCols = source.getFrozenColumns()
   data.frozenRows = source.getFrozenRows()
 
-  data.tabColor = source.getTabColor()
+  data.tabColor   = source.getTabColor()
   data.source = source
+    
   return data
 }
 
-function freeze (target, data) {
-  target.setFrozenColumns(data.frozenCols)
-  target.setFrozenRows(data.frozenRows)
+function freezeCells (target, data) {
+    target.setFrozenColumns(data.frozenCols)
+    target.setFrozenRows(   data.frozenRows)
 }
 
-function unhide (target, data) {
-  target.showColumns(data.firstCol, data.numCols)
-  target.showRows(data.firstRow, data.numRows)
+function unhideCells (target, data) {
+    target.showColumns(data.firstCol, data.numCols)
+    target.showRows(   data.firstRow, data.numRows)
 }
 
 function copyTabColor (target, data) {
   target.setTabColor(data.tabColor)
 }
 
-function copyOnlyFormats (target, data) {
+function cleanUp (target, _) {
   target.clearFormats()
-  data.range.copyFormatToRange(target,
-                               data.firstCol,
-                               data.numCols,
-                               data.firstRow,
+}
+
+function copyFormatsOnly (target, data) {
+  // TODO: Refactor using range.copyTo(destRange, { formatOnly: true })
+  data.range.copyFormatToRange(target, 
+                               data.firstCol, 
+                               data.numCols, 
+                               data.firstRow, 
                                data.numRows)
 }
 
 function copyWidths (target, data) {
-  var colPosition  = 0
+  var colPosition = 0
   var desiredWidth = 0
   var currentWidth = 0
-
+    
   for (var i = 0; i <= data.numCols; i++) {
-    colPosition  = data.firstCol + i
-    desiredWidth = data.source.getColumnWidth(colPosition)
-    currentWidth = target.getColumnWidth(colPosition)
-    if (currentWidth !== desiredWidth) target.setColumnWidth(colPosition, desiredWidth)
-  }
+      colPosition = data.firstCol + i
+      desiredWidth  = data.source.getColumnWidth(colPosition)
+      currentWidth = target.getColumnWidth(colPosition)
+      if (currentWidth !== desiredWidth) target.setColumnWidth(colPosition, desiredWidth)
+    }
 }
 
 function copyHeights (target, data) {
-  var rowPosition  = 0
+  var rowPosition = 0
   var desiredHeight = 0
   var currentHeight = 0
-
+    
   for (var i = 0; i <= data.numRows; i++) {
     rowPosition = data.firstRow + i
     desiredHeight = data.source.getRowHeight(rowPosition)
@@ -142,8 +164,12 @@ function copyHeights (target, data) {
   }
 }
 
-function isSameSheet (sheetA, sheetB) {
-  return (sheetA.getSheetId() === sheetB.getSheetId())
+function copyContentsOnly (target, data) {
+  var destination
+  if (!data.contentsOnlyRange) return
+  
+  destination = target.getRange(data.contentsOnlyRange.getA1Notation())
+  data.contentsOnlyRange.copyTo(destination, { contentsOnly: true })
 }
 
 /**

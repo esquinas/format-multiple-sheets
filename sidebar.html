@@ -62,6 +62,14 @@
                 <option id='loading' value="Loading">Loading...</option> 
               </select>
             </div>
+            <h5>Additional Options</h5>
+            <div id ="options">
+              <label for="content-range">Range of content to copy around:</label>
+		      <input id="content-range" name="content-range" class="width-100" type="text" 
+                     maxlength="250" value="" placeholder="A1:B2" 
+                     pattern="[A-Za-z0-9\x22'$!:;,. _-]*" 
+                     title="Leave empty or enter a valid range in A1 notation, i.e. 'A1:B2' or a previously named range, i.e. 'my_range'." />
+            </div>
           </div>
         </div>
        <div class="tip block"> <p>TIP: If you need to preserve the format of any sheet, hide it by right-clicking on the sheet name in the tabs down below. Then click 'Hide sheet'.</p>
@@ -82,7 +90,7 @@
 
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js">
     </script>
-    <script>
+    <script>    
 /**
  * On document load, assign click handlers to each button and
  * loads all the sheet names.
@@ -148,10 +156,16 @@ function loadSheetNames (sheetNames) {
  */
 function runTemplatePropagation () {
   var templateName = $('#sheet-names-select').val()
+  var options = {}
+  options.contentsOnlyRange = $('#content-range').val().trim()
+
   this.disabled = true
   $('#clear').prop('disabled', false)
   $('#msg').remove()
-  google.script.run.withSuccessHandler(showInfo).withFailureHandler(showError).propagateFormat(templateName)
+  google.script.run
+    .withSuccessHandler(showInfo)
+    .withFailureHandler(showError)
+    .propagateFormat(templateName, options)
 }
 
 /**
@@ -176,3 +190,6 @@ function showInfo (msg) {
     </script>
   </body>
 </html>
+
+
+
