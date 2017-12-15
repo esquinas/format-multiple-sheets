@@ -11,7 +11,7 @@ I've been in this situation: you want to make a big spreadsheet and every sheet 
 
 However, as time goes by, you may want to make some change to the design. You change the template and then, you have to go like this: 
 
-`select range > copy template > change sheet > Menu > Edit > Paste special > Paste Format Only`, then **repeat** this process to every sheet, one by one. What if you have 30 sheets? 100? 500? *Nightmare!* 
+`select range > copy template > change sheet > Menu > Edit > Paste special > Paste Format Only`, then **repeat** this process to every sheet, one by one. What if you have 30 sheets? 60? 100? (current limit)  *Nightmare!* 
 
 But wait, what if you also need to match **the row heigths and column widths**? `... > Paste Format Only` just doesn't make the cut for you. The only way is going row by row, column by column, sheet by sheet, manually setting the sizes in pixels! Isn't it insane?
 
